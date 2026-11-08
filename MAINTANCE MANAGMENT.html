@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Good Dream - Professional Building Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen pb-16">
+
+    <!-- ================= LOGIN / SIGNUP GATE OVERLAY ================= -->
+    <div id="login-overlay" class="fixed inset-0 bg-slate-950/90 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-md w-full p-8 shadow-2xl border border-slate-200 text-center relative">
+            
+            <!-- Manager Quick Login Button at Top Right Corner -->
+            <button type="button" onclick="openManagerModal()" class="absolute top-4 right-4 text-xs bg-indigo-50 text-indigo-700 hover:bg-indigo-100 font-bold px-3 py-1.5 rounded-lg border border-indigo-200 transition">
+                <i class="fa-solid fa-user-tie mr-1"></i> Manager Login
+            </button>
+
+            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner mt-2">
+                <i class="fa-solid fa-building-shield"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-1">Good Dream System</h2>
+            <p id="auth-subtitle" class="text-xs text-slate-500 mb-6">Login with your account</p>
+            
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Username</label>
+                    <input type="text" id="login-user" required placeholder="Enter username..." class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Password</label>
+                    <input type="password" id="login-pass" required placeholder="Enter password..." class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">
+                    <i class="fa-solid fa-right-to-bracket mr-2"></i> Login
+                </button>
+            </form>
+
+            <!-- Signup Form (Hidden by default) -->
+            <form id="signup-form" onsubmit="handleSignup(event)" class="space-y-4 text-left hidden">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Choose Username</label>
+                    <input type="text" id="signup-user" required placeholder="Choose a username..." class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Choose Password</label>
+                    <input type="password" id="signup-pass" required placeholder="Choose a password..." class="w-full border rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
+                    <i class="fa-solid fa-user-plus mr-2"></i> Create Account
+                </button>
+            </form>
+
+            <div class="mt-6 text-center">
+                <button type="button" id="toggle-auth-btn" onclick="toggleAuthMode()" class="text-xs text-indigo-600 font-semibold hover:underline">
+                    Don't have an account? Sign Up
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manager Direct Login Modal -->
+    <div id="manager-modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center">
+            <h3 class="text-lg font-bold text-slate-800 mb-2"><i class="fa-solid fa-user-tie text-indigo-600 mr-1"></i> Manager Direct Login</h3>
+            <p class="text-xs text-slate-500 mb-4">Enter manager password (SFBD1234)</p>
+            <input type="password" id="manager-pass-input" placeholder="Enter password..." class="w-full border rounded-xl p-3 text-sm mb-4 focus:ring-2 focus:ring-indigo-500 outline-none">
+            <div class="flex gap-2">
+                <button type="button" onclick="closeManagerModal()" class="flex-1 bg-slate-200 text-slate-700 font-bold py-2 rounded-xl text-xs">Cancel</button>
+                <button type="button" onclick="submitManagerLogin()" class="flex-1 bg-indigo-600 text-white font-bold py-2 rounded-xl text-xs">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Content (Hidden until login) -->
+    <div id="app-content" class="hidden">
+        <!-- Header -->
+        <header class="bg-indigo-700 text-white shadow-lg py-4 px-6 mb-6">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fa-solid fa-building-shield"></i> Good Dream Management System
+                </h1>
+                
+                <div class="flex items-center gap-3">
+                    <span id="role-badge" class="px-3 py-1 bg-indigo-800 text-xs font-bold rounded-full border border-indigo-500">User</span>
+                    <button onclick="logout()" class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-xs font-bold rounded-lg transition"><i class="fa-solid fa-right-from-bracket mr-1"></i> Logout</button>
+                </div>
+
+                <div class="flex gap-2">
+                    <button onclick="switchTab('complaints')" id="btn-complaints" class="px-4 py-2 bg-white text-indigo-700 font-semibold rounded-lg shadow transition tab-btn">
+                        <i class="fa-solid fa-clipboard-list mr-1"></i> Active Tasks
+                    </button>
+                    <button onclick="switchTab('completed-tab')" id="btn-completed" class="px-4 py-2 bg-indigo-800 text-white font-semibold rounded-lg shadow transition tab-btn">
+                        <i class="fa-solid fa-circle-check mr-1"></i> Completed History
+                    </button>
+                    <button onclick="switchTab('rooms')" id="btn-rooms" class="px-4 py-2 bg-indigo-800 text-white font-semibold rounded-lg shadow transition tab-btn">
+                        <i class="fa-solid fa-door-open mr-1"></i> Vacant Rooms (Rent)
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4">
+            <!-- TAB 1: ACTIVE TASKS -->
+            <div id="tab-complaints" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-amber-500">
+                        <p class="text-sm text-slate-500">Pending</p>
+                        <h3 id="stat-pending" class="text-2xl font-bold text-amber-600">0</h3>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
+                        <p class="text-sm text-slate-500">Processing</p>
+                        <h3 id="stat-processing" class="text-2xl font-bold text-blue-600">0</h3>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-emerald-500">
+                        <p class="text-sm text-slate-500">Completed</p>
+                        <h3 id="stat-completed" class="text-2xl font-bold text-emerald-600">0</h3>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-sky-500">
+                        <p class="text-sm text-slate-500">Today's Tasks</p>
+                        <h3 id="stat-today" class="text-2xl font-bold text-sky-600">0</h3>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow border-l-4 border-purple-500">
+                        <p class="text-sm text-slate-500">Total Records</p>
+                        <h3 id="stat-total" class="text-2xl font-bold text-purple-600">0</h3>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow mb-8 border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4 text-indigo-700"><i class="fa-solid fa-plus-circle mr-1"></i> Add New Complaint / Task</h2>
+                    <form id="complaint-form" onsubmit="addComplaint(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Building & Room No</label>
+                            <input type="text" id="c-room" required placeholder="e.g. Bldg 3, Room 204" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Task Date</label>
+                            <input type="date" id="c-date" required class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Complain Photos (Multiple)</label>
+                            <input type="file" id="c-photos" accept="image/*" multiple class="w-full border rounded-lg p-1 bg-slate-50 text-sm" onchange="encodeMultiplePhotos(this)">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium mb-1">Complain / Issue Details</label>
+                            <input type="text" id="c-desc" required placeholder="e.g. AC leaking / Light switch broken" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Initial Note / Saman Dorkar</label>
+                            <input type="text" id="c-note" placeholder="e.g. Need new switch board..." class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div class="md:col-span-3 flex justify-end">
+                            <button type="submit" class="bg-indigo-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                                <i class="fa-solid fa-save mr-1"></i> Save Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+                    <div class="p-4 bg-slate-50 border-b flex flex-col md:flex-row justify-between items-center gap-3">
+                        <h3 class="font-bold text-slate-700"><i class="fa-solid fa-list-check mr-1"></i> Running Tasks</h3>
+                        <input type="text" id="search-complaint" onkeyup="filterComplaints()" placeholder="Search room, issue or note..." class="border rounded-lg px-3 py-1.5 text-sm w-full md:w-72">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-200 text-slate-700 text-sm">
+                                    <th class="p-3">Task Date</th>
+                                    <th class="p-3">Room/Bldg</th>
+                                    <th class="p-3">Issue & Media</th>
+                                    <th class="p-3">Notes & History</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="complaints-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: COMPLETED HISTORY -->
+            <div id="tab-completed-tab" class="tab-content hidden">
+                <div class="bg-white rounded-xl shadow overflow-hidden border border-slate-200">
+                    <div class="p-4 bg-emerald-50 border-b flex justify-between items-center">
+                        <h3 class="font-bold text-emerald-800"><i class="fa-solid fa-circle-check mr-1"></i> Completed Tasks History</h3>
+                        <span class="text-xs bg-emerald-200 text-emerald-800 px-3 py-1 rounded-full font-bold" id="completed-count-badge">0 Completed</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-200 text-slate-700 text-sm">
+                                    <th class="p-3">Task Date</th>
+                                    <th class="p-3">Room/Bldg</th>
+                                    <th class="p-3">Issue & Media</th>
+                                    <th class="p-3">Notes & Timeline</th>
+                                    <th class="p-3">Status</th>
+                                    <th class="p-3 text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="completed-list" class="divide-y divide-slate-100 text-sm"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: VACANT ROOMS -->
+            <div id="tab-rooms" class="tab-content hidden">
+                <div class="bg-white p-6 rounded-xl shadow mb-8 border border-slate-200">
+                    <h2 class="text-lg font-bold mb-4 text-emerald-700"><i class="fa-solid fa-house-chimney-medical mr-1"></i> Add Vacant Room</h2>
+                    <form id="room-form" onsubmit="addRoom(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Building & Room Number</label>
+                            <input type="text" id="r-name" required placeholder="e.g. Al-Mansoura Bldg, Room 101" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Rent Price (QR / Month)</label>
+                            <input type="number" id="r-price" required placeholder="e.g. 2500" class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Room Photo</label>
+                            <input type="file" id="r-photo" accept="image/*" class="w-full border rounded-lg p-1 bg-slate-50 text-sm" onchange="encodeRoomImage(this)">
+                        </div>
+                        <div class="md:col-span-3">
+                            <label class="block text-sm font-medium mb-1">Room Details</label>
+                            <textarea id="r-details" rows="2" placeholder="e.g. Attached bathroom, split AC..." class="w-full border rounded-lg p-2 focus:ring-2 focus:ring-emerald-500"></textarea>
+                        </div>
+                        <div class="md:col-span-3 flex justify-end">
+                            <button type="submit" class="bg-emerald-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-emerald-700 transition">
+                                <i class="fa-solid fa-upload mr-1"></i> Publish Room
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="rooms-grid"></div>
+            </div>
+        </main>
+
+        <!-- ================= WHATSAPP STYLE FLOATING CHAT WIDGET ================= -->
+        <div class="fixed bottom-6 right-6 z-40">
+            <button type="button" onclick="toggleChatBox()" class="bg-emerald-500 hover:bg-emerald-600 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-2xl transition transform hover:scale-105 relative">
+                <i class="fa-brands fa-whatsapp"></i>
+                <span id="chat-badge" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+            </button>
+
+            <div id="chat-window" class="hidden absolute bottom-20 right-0 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden h-[500px]">
+                <div class="bg-emerald-700 text-white p-3 flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-emerald-600 rounded-full flex items-center justify-center font-bold text-xs">GD</div>
+                        <div>
+                            <h4 class="font-bold text-xs">Good Dream Support Chat</h4>
+                            <p class="text-[9px] text-emerald-200">Online • Permanent History</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" id="clear-chat-btn" onclick="clearChatHistory()" class="text-[10px] bg-rose-600 hover:bg-rose-700 text-white px-2 py-1 rounded hidden" title="Clear All Chat History">
+                            <i class="fa-solid fa-trash-can mr-1"></i> Clear
+                        </button>
+                        <button type="button" onclick="toggleChatBox()" class="text-white hover:text-slate-200 text-base"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <div id="chat-messages" class="flex-1 p-3 overflow-y-auto space-y-2 bg-slate-50 text-xs"></div>
+
+                <div id="voice-status-bar" class="hidden px-3 py-1 bg-rose-100 text-rose-700 text-[11px] font-semibold flex justify-between items-center">
+                    <span>🔴 Recording Voice... <span id="timer">0s</span></span>
+                    <button type="button" onclick="stopAndSendVoice()" class="bg-rose-600 text-white px-2 py-0.5 rounded text-[10px]">Send Voice</button>
+                </div>
+
+                <div class="p-2.5 bg-white border-t flex items-center gap-2">
+                    <label class="cursor-pointer text-slate-500 hover:text-emerald-600 text-base px-1" title="Send Image/Video">
+                        <i class="fa-solid fa-paperclip"></i>
+                        <input type="file" accept="image/*,video/*" class="hidden" onchange="sendChatMedia(this)">
+                    </label>
+
+                    <button type="button" id="mic-btn" onclick="startVoiceRecording()" class="text-slate-500 hover:text-emerald-600 text-base px-1" title="Hold/Click to Record Voice">
+                        <i class="fa-solid fa-microphone"></i>
+                    </button>
+
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500" onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                    
+                    <button type="button" onclick="sendChatMessage()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Modal -->
+    <div id="update-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-slate-800 mb-4"><i class="fa-solid fa-pen-to-square text-indigo-600 mr-1"></i> Update Task Status & Media</h3>
+            <input type="hidden" id="modal-task-id">
+            
+            <div class="mb-3">
+                <label class="block text-sm font-medium mb-1">Select Status (Dropdown)</label>
+                <select id="modal-status" class="w-full border rounded-lg p-2 text-sm bg-white font-semibold focus:ring-2 focus:ring-indigo-500">
+                    <option value="Pending">Pending</option>
+                    <option value="Processing">Processing</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="block text-sm font-medium mb-1">Electrician Note / Saman Dorkar</label>
+                <textarea id="modal-note" rows="3" placeholder="e.g. Wire kete geche..." class="w-full border rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+
+            <div class="mb-3 bg-indigo-50 p-3 rounded-lg border border-indigo-200">
+                <label class="block text-sm font-medium mb-1 text-indigo-900 font-bold"><i class="fa-solid fa-camera mr-1"></i> Capture Camera / Upload Media</label>
+                <input type="file" id="modal-media" accept="image/*,video/*" capture="environment" multiple class="w-full border rounded-lg p-1 bg-white text-sm" onchange="encodeMultipleModalMedia(this)">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-1 text-rose-600 font-bold"><i class="fa-solid fa-lock mr-1"></i> Enter Password to Save Update</label>
+                <input type="password" id="modal-password" placeholder="Enter password..." class="w-full border border-rose-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-rose-500">
+            </div>
+
+            <div class="flex justify-end gap-2">
+                <button type="button" onclick="closeUpdateModal()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-300">Cancel</button>
+                <button type="button" onclick="submitSecureUpdate()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700">Save Update</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox-modal" class="fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50" onclick="closeLightbox()">
+        <div class="relative max-w-4xl w-full flex flex-col items-center" onclick="event.stopPropagation()">
+            <button type="button" onclick="closeLightbox()" class="absolute -top-10 right-0 text-white text-3xl font-bold hover:text-rose-400">&times;</button>
+            <div id="lightbox-content" class="w-full flex justify-center items-center"></div>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDccolRrjeuN21hFxuOvHKtqbnqWLsRP0wo",
+            authDomain: "sfbd-615d7.firebaseapp.com",
+            databaseURL: "https://sfbd-615d7-default-rtdb.firebaseio.com",
+            projectId: "sfbd-615d7",
+            storageBucket: "sfbd-615d7.firebasestorage.app",
+            messagingSenderId: "344736850031",
+            appId: "1:344736850031:web:344736850031..."
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        document.getElementById('c-date').valueAsDate = new Date();
+
+        let currentUser = sessionStorage.getItem('sfbd_user') || "";
+        let currentUserRole = sessionStorage.getItem('sfbd_role') || "";
+        let isSignupMode = false;
+        let initialPhotosArr = [];
+        let roomBase64 = "";
+        let modalMediaArr = [];
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let recordingTimer;
+        let secondsCount = 0;
+
+        window.onload = function() {
+            if(currentUser) {
+                document.getElementById('login-overlay').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                document.getElementById('role-badge').innerText = currentUser + " (" + currentUserRole + ")";
+                
+                if(currentUserRole === "Manager") {
+                    document.getElementById('clear-chat-btn').classList.remove('hidden');
+                }
+            }
+        };
+
+        function toggleAuthMode() {
+            isSignupMode = !isSignupMode;
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const subtitle = document.getElementById('auth-subtitle');
+            const toggleBtn = document.getElementById('toggle-auth-btn');
+
+            if(isSignupMode) {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+                subtitle.innerText = "Create a new account";
+                toggleBtn.innerText = "Already have an account? Login";
+            } else {
+                signupForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                subtitle.innerText = "Login with your account";
+                toggleBtn.innerText = "Don't have an account? Sign Up";
+            }
+        }
+
+        function handleSignup(e) {
+            e.preventDefault();
+            const user = document.getElementById('signup-user').value.trim();
+            const pass = document.getElementById('signup-pass').value.trim();
+
+            db.ref('users/' + user).once('value', (snapshot) => {
+                if(snapshot.exists()) {
+                    alert("Username already exists! Choose another.");
+                } else {
+                    db.ref('users/' + user).set({ password: pass, role: 'User' });
+                    alert("Account created successfully! Please login.");
+                    toggleAuthMode();
+                }
+            });
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('login-user').value.trim();
+            const pass = document.getElementById('login-pass').value.trim();
+
+            db.ref('users/' + user).once('value', (snapshot) => {
+                if(snapshot.exists()) {
+                    const data = snapshot.val();
+                    if(data.password === pass) {
+                        currentUser = user;
+                        currentUserRole = data.role || 'User';
+                        sessionStorage.setItem('sfbd_user', currentUser);
+                        sessionStorage.setItem('sfbd_role', currentUserRole);
+
+                        document.getElementById('login-overlay').classList.add('hidden');
+                        document.getElementById('app-content').classList.remove('hidden');
+                        document.getElementById('role-badge').innerText = currentUser + " (" + currentUserRole + ")";
+                        location.reload();
+                    } else {
+                        alert("Incorrect Password!");
+                    }
+                } else {
+                    alert("User not found! Please sign up first.");
+                }
+            });
+        }
+
+        function openManagerModal() {
+            document.getElementById('manager-modal').classList.remove('hidden');
+        }
+        function closeManagerModal() {
+            document.getElementById('manager-modal').classList.add('hidden');
+        }
+        function submitManagerLogin() {
+            const pass = document.getElementById('manager-pass-input').value;
+            if(pass === "SFBD1234") {
+                currentUser = "Manager";
+                currentUserRole = "Manager";
+                sessionStorage.setItem('sfbd_user', currentUser);
+                sessionStorage.setItem('sfbd_role', currentUserRole);
+                location.reload();
+            } else {
+                alert("Incorrect Manager Password!");
+            }
+        }
+
+        function logout() {
+            sessionStorage.clear();
+            location.reload();
+        }
+
+        function toggleChatBox() {
+            const win = document.getElementById('chat-window');
+            win.classList.toggle('hidden');
+            const msgArea = document.getElementById('chat-messages');
+            msgArea.scrollTop = msgArea.scrollHeight;
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if(!text) return;
+
+            db.ref('chats').push({
+                sender: currentUser,
+                role: currentUserRole,
+                text: text,
+                type: 'text',
+                timestamp: Date.now()
+            });
+            input.value = '';
+        }
+
+        function sendChatMedia(el) {
+            const file = el.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const isVideo = file.type.startsWith('video');
+                db.ref('chats').push({
+                    sender: currentUser,
+                    role: currentUserRole,
+                    url: reader.result,
+                    type: isVideo ? 'video' : 'image',
+                    timestamp: Date.now()
+                });
+            };
+            reader.readAsDataURL(file);
+            el.value = '';
+        }
+
+        function startVoiceRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/mp3' });
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        db.ref('chats').push({
+                            sender: currentUser,
+                            role: currentUserRole,
+                            url: reader.result,
+                            type: 'audio',
+                            timestamp: Date.now()
+                        });
+                    };
+                    reader.readAsDataURL(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                document.getElementById('voice-status-bar').classList.remove('hidden');
+                document.getElementById('mic-btn').classList.add('text-rose-600', 'animate-pulse');
+                
+                secondsCount = 0;
+                document.getElementById('timer').innerText = "0s";
+                recordingTimer = setInterval(() => {
+                    secondsCount++;
+                    document.getElementById('timer').innerText = secondsCount + "s";
+                }, 1000);
+            }).catch(err => {
+                alert("Microphone access denied or not supported!");
+            });
+        }
+
+        function stopAndSendVoice() {
+            if(mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+                clearInterval(recordingTimer);
+                document.getElementById('voice-status-bar').classList.add('hidden');
+                document.getElementById('mic-btn').classList.remove('text-rose-600', 'animate-pulse');
+            }
+        }
+
+        function unsendMessage(messageKey, senderName) {
+            if(currentUser !== senderName && currentUserRole !== "Manager") {
+                alert("You can only delete your own messages!");
+                return;
+            }
+            if(confirm('Delete this message?')) {
+                db.ref('chats/' + messageKey).remove();
+            }
+        }
+
+        function clearChatHistory() {
+            if(currentUserRole !== "Manager") {
+                alert("Only Manager can clear chat history!");
+                return;
+            }
+            if(confirm('Are you sure you want to clear all chat history permanently?')) {
+                db.ref('chats').remove();
+                alert("Chat history cleared!");
+            }
+        }
+
+        db.ref('chats').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const msgArea = document.getElementById('chat-messages');
+            msgArea.innerHTML = '';
+
+            if(data) {
+                Object.keys(data).forEach(key => {
+                    const m = data[key];
+                    const isMe = m.sender === currentUser;
+                    const align = isMe ? 'ml-auto bg-emerald-100 text-emerald-900' : 'mr-auto bg-white text-slate-800 border';
+
+                    let contentHtml = '';
+                    if(m.type === 'image') {
+                        contentHtml = `<img src="${m.url}" onclick="openLightbox('${m.url}', 'image')" class="w-36 h-36 object-cover rounded cursor-pointer mt-1">`;
+                    } else if(m.type === 'video') {
+                        contentHtml = `<video src="${m.url}" controls class="w-40 rounded mt-1"></video>`;
+                    } else if(m.type === 'audio') {
+                        contentHtml = `<audio src="${m.url}" controls class="w-48 h-8 mt-1"></audio>`;
+                    } else {
+                        contentHtml = `<p class="mt-0.5">${m.text}</p>`;
+                    }
+
+                    let deleteIcon = '';
+                    if(isMe || currentUserRole === "Manager") {
+                        deleteIcon = `<button type="button" onclick="unsendMessage('${key}', '${m.sender}')" class="text-slate-400 hover:text-rose-600 text-[10px]" title="Unsend"><i class="fa-solid fa-trash"></i></button>`;
+                    }
+
+                    msgArea.innerHTML += `
+                        <div class="max-w-[80%] p-2.5 rounded-xl shadow-sm ${align} relative group">
+                            <div class="flex justify-between items-center gap-3 mb-1">
+                                <strong class="text-[10px] text-indigo-600">${m.sender} (${m.role})</strong>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[9px] text-slate-400">${formatDateTime(m.timestamp)}</span>
+                                    ${deleteIcon}
+                                </div>
+                            </div>
+                            ${contentHtml}
+                        </div>
+                    `;
+                });
+                msgArea.scrollTop = msgArea.scrollHeight;
+            } else {
+                msgArea.innerHTML = `<p class="text-center text-slate-400 py-4">No messages yet. Start chatting!</p>`;
+            }
+        });
+
+        function encodeMultiplePhotos(el) {
+            const files = el.files;
+            initialPhotosArr = [];
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onloadend = (e) => {
+                    initialPhotosArr.push({
+                        url: e.target.result,
+                        type: files[i].type.startsWith('video') ? 'video' : 'image'
+                    });
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        }
+
+        function encodeMultipleModalMedia(el) {
+            const files = el.files;
+            modalMediaArr = [];
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onloadend = (e) => {
+                    modalMediaArr.push({
+                        url: e.target.result,
+                        type: files[i].type.startsWith('video') ? 'video' : 'image'
+                    });
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        }
+
+        function encodeRoomImage(el) {
+            const file = el.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onloadend = () => roomBase64 = reader.result;
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('bg-white', 'text-indigo-700', 'bg-indigo-800');
+                el.classList.add('bg-indigo-800', 'text-white');
+            });
+
+            if(tab === 'complaints') {
+                document.getElementById('tab-complaints').classList.remove('hidden');
+                document.getElementById('btn-complaints').classList.remove('bg-indigo-800');
+                document.getElementById('btn-complaints').classList.add('bg-white', 'text-indigo-700');
+            } else if(tab === 'completed-tab') {
+                document.getElementById('tab-completed-tab').classList.remove('hidden');
+                document.getElementById('btn-completed').classList.remove('bg-indigo-800');
+                document.getElementById('btn-completed').classList.add('bg-white', 'text-indigo-700');
+            } else {
+                document.getElementById('tab-rooms').classList.remove('hidden');
+                document.getElementById('btn-rooms').classList.remove('bg-indigo-800');
+                document.getElementById('btn-rooms').classList.add('bg-white', 'text-indigo-700');
+            }
+        }
+
+        function formatDateTime(timestamp) {
+            if(!timestamp) return '';
+            const d = new Date(timestamp);
+            return d.toLocaleString('en-GB', { 
+                day: '2-digit', month: 'short', 
+                hour: '2-digit', minute: '2-digit', hour12: true 
+            });
+        }
+
+        function openLightbox(url, type) {
+            const modal = document.getElementById('lightbox-modal');
+            const content = document.getElementById('lightbox-content');
+            if(type === 'video') {
+                content.innerHTML = `<video src="${url}" controls autoplay class="max-h-[85vh] max-w-full rounded shadow-lg"></video>`;
+            } else {
+                content.innerHTML = `<img src="${url}" class="max-h-[85vh] max-w-full rounded shadow-lg object-contain">`;
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox-modal').classList.add('hidden');
+            document.getElementById('lightbox-content').innerHTML = '';
+        }
+
+        function addComplaint(e) {
+            e.preventDefault();
+            const room = document.getElementById('c-room').value;
+            const desc = document.getElementById('c-desc').value;
+            const date = document.getElementById('c-date').value;
+            const note = document.getElementById('c-note').value;
+            const nowTime = Date.now();
+
+            const newRef = db.ref('complaints').push();
+            newRef.set({
+                room, desc, date, note,
+                status: 'Pending',
+                mediaList: initialPhotosArr || [],
+                createdAt: nowTime,
+                processingAt: '',
+                completedAt: '',
+                timestamp: nowTime
+            });
+
+            document.getElementById('complaint-form').reset();
+            document.getElementById('c-date').valueAsDate = new Date();
+            initialPhotosArr = [];
+        }
+
+        function openUpdateModal(id, currentStatus, currentNote) {
+            document.getElementById('modal-task-id').value = id;
+            document.getElementById('modal-status').value = currentStatus;
+            document.getElementById('modal-note').value = currentNote || '';
+            document.getElementById('modal-password').value = '';
+            document.getElementById('modal-media').value = '';
+            modalMediaArr = [];
+            document.getElementById('update-modal').classList.remove('hidden');
+        }
+
+        function closeUpdateModal() {
+            document.getElementById('update-modal').classList.add('hidden');
+        }
+
+        function submitSecureUpdate() {
+            const id = document.getElementById('modal-task-id').value;
+            const password = document.getElementById('modal-password').value;
+
+            let requiredPass = currentUserRole === "Manager" ? "SFBD1234" : "SFBD";
+            if(password !== requiredPass) {
+                alert("Incorrect Password!");
+                return;
+            }
+
+            const status = document.getElementById('modal-status').value;
+            const note = document.getElementById('modal-note').value;
+            const nowTime = Date.now();
+
+            db.ref('complaints/' + id).once('value', (snapshot) => {
+                const currentData = snapshot.val();
+                
+                const updateData = {
+                    status: status,
+                    note: note ? note : currentData.note
+                };
+
+                if(status === 'Processing' && !currentData.processingAt) {
+                    updateData.processingAt = nowTime;
+                }
+                if(status === 'Completed' && !currentData.completedAt) {
+                    updateData.completedAt = nowTime;
+                }
+
+                if(modalMediaArr.length > 0) {
+                    let existingMedia = currentData.mediaList || [];
+                    updateData.mediaList = existingMedia.concat(modalMediaArr);
+                }
+
+                db.ref('complaints/' + id).update(updateData);
+                closeUpdateModal();
+                alert("Update saved successfully!");
+            });
+        }
+
+        function deleteComplaint(id) {
+            if(currentUserRole !== 'Manager') {
+                alert("Access Denied! Only Manager can delete tasks.");
+                return;
+            }
+            if(confirm('Are you sure you want to delete this task record?')) {
+                db.ref('complaints/' + id).remove();
+            }
+        }
+
+        db.ref('complaints').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const activeTbody = document.getElementById('complaints-list');
+            const completedTbody = document.getElementById('completed-list');
+            activeTbody.innerHTML = '';
+            completedTbody.innerHTML = '';
+
+            let pCount = 0, prCount = 0, cCount = 0, tCount = 0, total = 0;
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            if(data) {
+                Object.keys(data).forEach(key => {
+                    const item = data[key];
+                    total++;
+                    if(item.status === 'Pending') pCount++;
+                    if(item.status === 'Processing') prCount++;
+                    if(item.status === 'Completed') cCount++;
+                    if(item.date === todayStr) tCount++;
+
+                    let statusBadge = '';
+                    if(item.status === 'Pending') statusBadge = `<span class="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">Pending</span>`;
+                    else if(item.status === 'Processing') statusBadge = `<span class="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Processing</span>`;
+                    else statusBadge = `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">Completed</span>`;
+
+                    let mediaHtml = `<div class="flex flex-wrap gap-2 mt-2">`;
+                    if(item.mediaList && item.mediaList.length > 0) {
+                        item.mediaList.forEach(m => {
+                            if(m.type === 'video') {
+                                mediaHtml += `<div onclick="openLightbox('${m.url}', 'video')" class="relative w-12 h-12 bg-black rounded border cursor-pointer flex items-center justify-center text-white"><i class="fa-solid fa-play text-xs"></i></div>`;
+                            } else {
+                                mediaHtml += `<img src="${m.url}" onclick="openLightbox('${m.url}', 'image')" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80 transition shadow-sm">`;
+                            }
+                        });
+                    } else {
+                        mediaHtml += `<span class="text-xs text-slate-400 italic">No media</span>`;
+                    }
+                    mediaHtml += `</div>`;
+
+                    let historyHtml = `<div class="text-xs space-y-1">`;
+                    historyHtml += `<div class="font-medium text-slate-700 bg-amber-50 p-1.5 rounded border border-amber-200"><strong>Note:</strong> ${item.note || 'No notes'}</div>`;
+                    historyHtml += `<div class="text-slate-400">🕒 Added: ${formatDateTime(item.createdAt)}</div>`;
+                    if(item.processingAt) {
+                        historyHtml += `<div class="text-blue-600">⚙️ Processing: ${formatDateTime(item.processingAt)}</div>`;
+                    }
+                    if(item.completedAt) {
+                        historyHtml += `<div class="text-emerald-600 font-semibold">✅ Completed: ${formatDateTime(item.completedAt)}</div>`;
+                    }
+                    historyHtml += `</div>`;
+
+                    let actionButtons = '';
+                    if(item.status === 'Completed' && currentUserRole !== 'Manager') {
+                        actionButtons = `<span class="text-xs text-slate-400 italic">Locked</span>`;
+                    } else {
+                        actionButtons = `<button type="button" onclick="openUpdateModal('${key}', '${item.status}', '${item.note || ''}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-indigo-700 font-semibold shadow"><i class="fa-solid fa-pen-to-square mr-1"></i> Update</button>`;
+                    }
+
+                    if(currentUserRole === 'Manager') {
+                        actionButtons += ` <button type="button" onclick="deleteComplaint('${key}')" class="bg-rose-500 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-rose-600 ml-1 shadow font-semibold" title="Delete Task"><i class="fa-solid fa-trash mr-1"></i> Delete</button>`;
+                    }
+
+                    const rowHtml = `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-3 text-slate-500 font-medium">${item.date}</td>
+                            <td class="p-3 font-bold text-slate-700">${item.room}</td>
+                            <td class="p-3 text-slate-600 max-w-xs">
+                                <div class="font-semibold text-slate-800">${item.desc}</div>
+                                ${mediaHtml}
+                            </td>
+                            <td class="p-3">${historyHtml}</td>
+                            <td class="p-3">${statusBadge}</td>
+                            <td class="p-3 text-center flex items-center justify-center gap-1">${actionButtons}</td>
+                        </tr>
+                    `;
+
+                    if(item.status === 'Completed') {
+                        completedTbody.innerHTML += rowHtml;
+                    } else {
+                        activeTbody.innerHTML += rowHtml;
+                    }
+                });
+            }
+
+            document.getElementById('stat-pending').innerText = pCount;
+            document.getElementById('stat-processing').innerText = prCount;
+            document.getElementById('stat-completed').innerText = cCount;
+            document.getElementById('stat-today').innerText = tCount;
+            document.getElementById('stat-total').innerText = total;
+            document.getElementById('completed-count-badge').innerText = cCount + " Completed";
+
+            if(activeTbody.innerHTML === '') {
+                activeTbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No active pending or processing tasks found.</td></tr>`;
+            }
+            if(completedTbody.innerHTML === '') {
+                completedTbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-slate-400">No completed tasks in history yet.</td></tr>`;
+            }
+        });
+
+        function addRoom(e) {
+            e.preventDefault();
+            if(currentUserRole !== "Manager") {
+                alert("Only Manager can add rooms!");
+                return;
+            }
+            const name = document.getElementById('r-name').value;
+            const price = document.getElementById('r-price').value;
+            const details = document.getElementById('r-details').value;
+
+            const newRef = db.ref('rooms').push();
+            newRef.set({
+                name, price, details,
+                photo: roomBase64 || 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&auto=format&fit=crop&q=60'
+            });
+
+            document.getElementById('room-form').reset();
+            roomBase64 = "";
+        }
+
+        function deleteRoom(id) {
+            if(currentUserRole !== "Manager") {
+                alert("Access Denied! Only Manager can remove room listings.");
+                return;
+            }
+            if(confirm('Delete this vacancy room listing?')) {
+                db.ref('rooms/' + id).remove();
+            }
+        }
+
+        db.ref('rooms').on('value', (snapshot) => {
+            const data = snapshot.val();
+            const grid = document.getElementById('rooms-grid');
+            grid.innerHTML = '';
+
+            if(data) {
+                Object.keys(data).forEach(key => {
+                    const r = data[key];
+                    
+                    let deleteRoomBtn = '';
+                    if(currentUserRole === 'Manager') {
+                        deleteRoomBtn = `<button type="button" onclick="deleteRoom('${key}')" class="bg-rose-500 hover:bg-rose-600 text-white px-3 py-1 rounded text-xs font-semibold shadow"><i class="fa-solid fa-trash mr-1"></i> Remove Room</button>`;
+                    } else {
+                        deleteRoomBtn = `<span class="text-xs text-emerald-600 font-semibold"><i class="fa-solid fa-check-circle mr-1"></i> Available</span>`;
+                    }
+
+                    grid.innerHTML += `
+                        <div class="bg-white rounded-xl shadow overflow-hidden flex flex-col justify-between border border-slate-200">
+                            <div>
+                                <img src="${r.photo}" onclick="openLightbox('${r.photo}', 'image')" alt="Room" class="w-full h-48 object-cover cursor-pointer hover:opacity-90">
+                                <div class="p-4">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h3 class="font-bold text-lg text-slate-800">${r.name}</h3>
+                                        <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">${r.price} QR</span>
+                                    </div>
+                                    <p class="text-slate-600 text-sm mb-2">${r.details}</p>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-slate-50 border-t flex justify-between items-center">
+                                <span class="text-xs text-emerald-600 font-semibold"><i class="fa-solid fa-circle-dot mr-1 text-emerald-500"></i> Vacant</span>
+                                ${deleteRoomBtn}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                grid.innerHTML = `<p class="text-slate-500 col-span-3 text-center py-8">No vacant rooms listed yet.</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
